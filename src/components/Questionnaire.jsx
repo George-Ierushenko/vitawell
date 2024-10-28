@@ -15,7 +15,6 @@ const Questionnaire = () => {
     background: '#F0F4F4'
   };
 
-  // Initialize Google Analytics
   useEffect(() => {
     const gaScript = document.createElement('script');
     gaScript.async = true;
@@ -28,11 +27,14 @@ const Questionnaire = () => {
     }
     window.gtag = gtag;
     gtag('js', new Date());
-    gtag('config', 'G-ZG26M5SPN8');
+    gtag('config', 'G-ZG26M5SPN8', {
+      user_id: localStorage.getItem('user_email') || undefined
+    });
 
     gtag('event', 'questionnaire_start', {
       event_category: 'Questionnaire',
-      event_label: 'Started'
+      event_label: 'Started',
+      user_id: localStorage.getItem('user_email') || undefined
     });
 
     return () => {
@@ -53,14 +55,19 @@ const Questionnaire = () => {
           onChange={(e) => {
             setEmail(e.target.value);
             if (e.target.value.includes('@')) {
+              localStorage.setItem('user_email', e.target.value);
+              window.gtag('set', 'user_properties', {
+                user_id: e.target.value
+              });
               window.gtag('event', 'email_entered', {
                 event_category: 'Questionnaire',
                 event_label: 'Email Input',
-                value: 1
+                user_id: e.target.value
               });
             }
           }}
           className="w-full mb-4"
+          style={{ borderColor: theme.secondary, color: theme.primary }}
         />
       )
     },
@@ -74,65 +81,36 @@ const Questionnaire = () => {
         { text: 'Не завжди 🙂', value: 'sometimes' },
         { text: 'Дуже мало :( 😢', value: 'rarely' }
       ]
-    },
-    {
-      type: 'choice',
-      text: 'How satisfied are you with your current work-life balance?',
-      event_name: 'work_life_balance',
-      options: [
-        { text: 'Very satisfied 😊', value: 'very_satisfied' },
-        { text: 'Somewhat satisfied 🙂', value: 'somewhat_satisfied' },
-        { text: 'Needs improvement 😐', value: 'needs_improvement' },
-        { text: 'Not satisfied at all 😕', value: 'not_satisfied' }
-      ]
-    },
-    {
-      type: 'choice',
-      text: 'What area of your life needs the most guidance right now?',
-      event_name: 'guidance_area',
-      options: [
-        { text: 'Career Development 💼', value: 'career' },
-        { text: 'Personal Growth 🌱', value: 'personal' },
-        { text: 'Relationships 💕', value: 'relationships' },
-        { text: 'Financial Planning 💰', value: 'financial' }
-      ]
-    },
-    {
-      type: 'choice',
-      text: 'How often do you feel stressed or overwhelmed?',
-      event_name: 'stress_level',
-      options: [
-        { text: 'Rarely 😌', value: 'rarely' },
-        { text: 'Sometimes 😊', value: 'sometimes' },
-        { text: 'Often 😓', value: 'often' },
-        { text: 'Very frequently 😰', value: 'very_frequently' }
-      ]
-    },
-    {
-      type: 'choice',
-      text: 'Are you ready to take the next step in your personal development?',
-      event_name: 'readiness',
-      options: [
-        { text: "Yes, I'm excited! 🎯", value: 'ready' },
-        { text: 'Need more information 🤔', value: 'need_info' },
-        { text: 'Still thinking about it 💭', value: 'thinking' },
-        { text: 'Not sure yet 🌱', value: 'unsure' }
-      ]
     }
   ];
 
   const trackEvent = (eventName, data) => {
+    const userEmail = localStorage.getItem('user_email');
     window.gtag('event', eventName, {
       event_category: 'Questionnaire',
       event_label: data.question || eventName,
       value: currentStep + 1,
+      user_id: userEmail,
+      question_number: currentStep + 1,
       ...data
     });
+
+    if (data.answer) {
+      window.gtag('event', 'question_response', {
+        event_category: 'Questionnaire',
+        event_label: `Question ${currentStep + 1}`,
+        user_id: userEmail,
+        question_text: data.question,
+        answer_value: data.answer,
+        question_number: currentStep + 1
+      });
+    }
   };
 
   const handleAnswer = (answer) => {
     const question = questions[currentStep];
-    setAnswers({ ...answers, [currentStep]: answer });
+    const newAnswers = { ...answers, [currentStep]: answer };
+    setAnswers(newAnswers);
 
     trackEvent(question.event_name, {
       question: question.text,
@@ -140,13 +118,24 @@ const Questionnaire = () => {
       step: currentStep + 1
     });
 
+    window.gtag('event', 'questionnaire_progress', {
+      event_category: 'Questionnaire',
+      event_label: `Step ${currentStep + 1}`,
+      user_id: localStorage.getItem('user_email'),
+      current_answers: JSON.stringify(newAnswers),
+      completion_percentage: ((currentStep + 1) / questions.length) * 100
+    });
+
     handleSubmit();
   };
 
   const handleSubmit = () => {
     if (currentStep === questions.length - 1) {
-      trackEvent('questionnaire_completed', {
-        email: email,
+      window.gtag('event', 'questionnaire_completed', {
+        event_category: 'Questionnaire',
+        event_label: 'Completion',
+        user_id: localStorage.getItem('user_email'),
+        all_answers: JSON.stringify(answers),
         total_steps: questions.length,
         completion_time: new Date().toISOString()
       });
@@ -162,12 +151,11 @@ const Questionnaire = () => {
       setCurrentStep(currentStep + 1);
     }
   };
-
   const progress = ((currentStep + 1) / questions.length) * 100;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: theme.background }}>
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md" style={{ borderColor: theme.secondary }}>
         <CardHeader className="space-y-6">
           {/* Logo */}
           <div className="flex justify-center">
@@ -222,7 +210,7 @@ const Questionnaire = () => {
           {questions[currentStep].type === 'email' && (
             <Button
               className="w-full mt-6"
-              style={{ backgroundColor: theme.secondary }}
+              style={{ backgroundColor: theme.secondary, color: theme.primary }}
               onClick={handleSubmit}
               disabled={!email.includes('@')}
             >
