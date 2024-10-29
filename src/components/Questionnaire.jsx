@@ -1,20 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import Confetti from 'react-confetti';
+import { motion } from 'framer-motion';
+import { Sparkles, Send, Rocket } from 'lucide-react';
 
 const Questionnaire = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [email, setEmail] = useState('');
   const [answers, setAnswers] = useState({});
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0
+  });
 
-  const theme = {
-    primary: '#1B3B5F',
-    secondary: '#47B5BE',
-    accent: '#87D5DB',
-    background: '#F0F4F4'
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Initialize Google Analytics
   useEffect(() => {
     const gaScript = document.createElement('script');
     gaScript.async = true;
@@ -48,27 +66,16 @@ const Questionnaire = () => {
       text: 'Please enter your email address:',
       event_name: 'email_input',
       component: (
-        <Input
-          type="email"
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (e.target.value.includes('@')) {
-              localStorage.setItem('user_email', e.target.value);
-              window.gtag('set', 'user_properties', {
-                user_id: e.target.value
-              });
-              window.gtag('event', 'email_entered', {
-                event_category: 'Questionnaire',
-                event_label: 'Email Input',
-                user_id: e.target.value
-              });
-            }
-          }}
-          className="w-full mb-4"
-          style={{ borderColor: theme.secondary, color: theme.primary }}
-        />
+        <div className="relative">
+          <Input
+            type="email"
+            placeholder="your@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full mb-4 pl-12 py-6 text-lg rounded-2xl border-2 border-teal-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all duration-300 placeholder:text-teal-300"
+          />
+          <Send className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-400 h-5 w-5" />
+        </div>
       )
     },
     {
@@ -76,12 +83,12 @@ const Questionnaire = () => {
       text: 'Я не думаю про гроші та мені завжди достатньо',
       event_name: 'financial_mindset',
       options: [
-        { text: 'Це про мене 😅', value: 'always' },
+        { text: 'Це про мене 😂', value: 'always' },
         { text: 'Вже майже так 😊', value: 'almost' },
-        { text: 'Не завжди 🙂', value: 'sometimes' },
-        { text: 'Дуже мало :( 😢', value: 'rarely' }
+        { text: 'Не завжди 😕', value: 'sometimes' },
+        { text: 'Дуже мало :(😭', value: 'rarely' }
       ]
-    }
+    },
   ];
 
   const trackEvent = (eventName, data) => {
@@ -126,6 +133,11 @@ const Questionnaire = () => {
       completion_percentage: ((currentStep + 1) / questions.length) * 100
     });
 
+    if (currentStep === questions.length - 1) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 5000); // Hide confetti after 5 seconds
+    }
+
     handleSubmit();
   };
 
@@ -139,8 +151,7 @@ const Questionnaire = () => {
         total_steps: questions.length,
         completion_time: new Date().toISOString()
       });
-
-      window.location.href = '/paywall';
+      setCurrentStep(currentStep + 1); // Move to congratulations step
     } else {
       trackEvent('question_answered', {
         current_step: currentStep + 1,
@@ -151,76 +162,150 @@ const Questionnaire = () => {
       setCurrentStep(currentStep + 1);
     }
   };
-  const progress = ((currentStep + 1) / questions.length) * 100;
+
+  const handleSignUp = () => {
+    window.location.href = '/paywall';
+  };
+
+  const progress = ((currentStep) / (questions.length)) * 100;
+
+  const renderContent = () => {
+    if (currentStep === questions.length) {
+      return (
+        <motion.div
+          className="text-center space-y-8"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="space-y-6">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+              className="inline-block"
+            >
+              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 text-transparent bg-clip-text">
+                🎉 Woohoo! 🎉
+              </h2>
+            </motion.div>
+            <p className="text-xl md:text-2xl text-gray-600 font-medium">
+              You're absolutely amazing!
+              <span className="block mt-2 text-lg text-gray-500">
+                Ready to start your journey?
+              </span>
+            </p>
+          </div>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSignUp}
+            className="group relative w-full max-w-sm mx-auto bg-gradient-to-r from-teal-400 to-blue-500 text-white py-6 px-8 rounded-2xl font-bold text-xl md:text-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-3">
+              Let's Go! <Rocket className="inline-block h-6 w-6" />
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-teal-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+          </motion.button>
+        </motion.div>
+      );
+    }
+
+    return (
+      <motion.div
+        key={currentStep}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={fadeInUp}
+        className="w-full"
+      >
+        <div className="relative mb-16">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800">
+            {questions[currentStep].text}
+          </h2>
+          <Sparkles className="absolute -right-8 -top-4 text-yellow-400 h-6 w-6" />
+        </div>
+
+        <div className="space-y-4">
+          {questions[currentStep].type === 'email' ? (
+            <div className="space-y-4">
+              {questions[currentStep].component}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-gradient-to-r from-teal-400 to-blue-500 text-white py-4 rounded-xl font-bold text-lg md:text-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                onClick={handleSubmit}
+                disabled={!email.includes('@')}
+              >
+                Let's Begin! ✨
+              </motion.button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {questions[currentStep].options.map((option, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-white border-2 border-teal-400 text-gray-700 py-4 px-6 rounded-xl font-medium text-lg md:text-xl transition-all duration-300 hover:bg-teal-50 hover:border-teal-500 hover:text-teal-600 shadow-md hover:shadow-lg"
+                  onClick={() => handleAnswer(option.value)}
+                >
+                  {option.text}
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: theme.background }}>
-      <Card className="w-full max-w-md" style={{ borderColor: theme.secondary }}>
-        <CardHeader className="space-y-6">
-          {/* Logo */}
-          <div className="flex justify-center">
-            <svg viewBox="0 0 50 50" className="w-16 h-16">
-              <circle cx="25" cy="25" r="24" fill={theme.primary} />
-              <path d="M25 5 L30 20 L45 25 L30 30 L25 45 L20 30 L5 25 L20 20 Z" fill="white" />
-              <path d="M15 20 Q25 15 35 30" fill="none" stroke={theme.secondary} strokeWidth="2" />
-              <path d="M15 25 Q25 20 35 35" fill="none" stroke={theme.accent} strokeWidth="2" />
-            </svg>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-white to-teal-50">
+      <style jsx global>{`
+            input:focus {
+              outline: none !important;
+              box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2) !important;
+              border-color: #2DD4BF !important;
+            }
+          `}</style>
 
-          {/* Progress bar */}
-          <div className="w-full h-2 bg-gray-200 rounded-full">
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: `${progress}%`, background: theme.secondary }}
+      {showConfetti && (
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          numberOfPieces={200}
+          recycle={false}
+          colors={['#2DD4BF', '#0EA5E9', '#818CF8', '#34D399']}
+        />
+      )}
+
+      <div className="fixed top-0 left-0 right-0 pt-8 px-4 z-10 bg-gradient-to-b from-white via-white to-transparent pb-8">
+        <div className="w-full max-w-md mx-auto">
+          <div className="w-full h-2 bg-teal-100 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-teal-400 to-blue-500"
+              style={{ width: `${progress}%` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
             />
           </div>
-        </CardHeader>
+          <p className="text-center mt-2 text-sm text-teal-600 font-medium">
+            {Math.round(progress)}% Complete
+          </p>
+        </div>
+      </div>
 
-        <CardContent>
-          {/* Question */}
-          <div className="space-y-6">
-            <CardTitle className="text-center" style={{ color: theme.primary }}>
-              {questions[currentStep].text}
-            </CardTitle>
-
-            {questions[currentStep].type === 'email' ? (
-              questions[currentStep].component
-            ) : (
-              <div className="space-y-3">
-                {questions[currentStep].options.map((option, index) => (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="w-full p-4 flex items-center justify-center text-lg hover:bg-accent/10"
-                    style={{
-                      '--tw-border-opacity': '1',
-                      borderColor: theme.secondary,
-                      color: theme.primary
-                    }}
-                    onClick={() => handleAnswer(option.value)}
-                  >
-                    {option.text}
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          {questions[currentStep].type === 'email' && (
-            <Button
-              className="w-full mt-6"
-              style={{ backgroundColor: theme.secondary, color: theme.primary }}
-              onClick={handleSubmit}
-              disabled={!email.includes('@')}
-            >
-              Continue
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex flex-col min-h-screen pt-32 px-4 pb-16">
+        <div className="flex-grow flex flex-col justify-center w-full max-w-md mx-auto">
+          {renderContent()}
+        </div>
+      </div>
     </div>
   );
+
 };
 
 export default Questionnaire;
