@@ -224,7 +224,6 @@ const Questionnaire = () => {
           <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800">
             {questions[currentStep].text}
           </h2>
-          <Sparkles className="absolute -right-8 -top-4 text-yellow-400 h-6 w-6" />
         </div>
 
         <div className="space-y-4">
